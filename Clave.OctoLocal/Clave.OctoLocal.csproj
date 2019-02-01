@@ -1,7 +1,14 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.2</TargetFramework>
+      <OutputType>Exe</OutputType>
+      <TargetFramework>netcoreapp2.2</TargetFramework>
+      <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
   </PropertyGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Fastenshtein" Version="1.0.0.4" />
+    <PackageReference Include="Microsoft.Extensions.CommandLineUtils" Version="1.1.1" />
+    <PackageReference Include="Octopus.Client" Version="4.30.2" />
+    <PackageReference Include="Octostache" Version="2.1.8" />
+  </ItemGroup>
 </Project>
