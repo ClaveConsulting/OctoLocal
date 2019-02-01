@@ -74,7 +74,7 @@
             }
             else
             {
-                await Substitute(files, client, currentDirectory, localConfig, variables);
+                await Substitute(files, client, currentDirectory, localConfig, variables, globalConfig);
             }
         }
 
@@ -83,10 +83,11 @@
             IOctopusAsyncClient client,
             string currentDirectory,
             LocalConfig localConfig,
-            IReadOnlyDictionary<string, string> variables)
+            IReadOnlyDictionary<string, string> variables,
+            GlobalConfig globalConfig)
         {
             var userConfig = await GetUserLocalConfig(currentDirectory);
-            var context = await GetVariables(client, localConfig, userConfig, variables);
+            var context = await GetVariables(client, localConfig, userConfig, variables, globalConfig);
             var exclude = FileSystem.FindFiles(currentDirectory, localConfig.Exclude?.ToArray()).ToHashSet();
             var paths = files?.Select(Static.MakeAbsolutePath(currentDirectory)).ToList() ??
                         Static.FindOctopusFiles(currentDirectory, localConfig.ConfigFilePattern);
@@ -260,43 +261,57 @@
             return projects;
         }
 
-        private async Task<VariableDictionary> GetVariables(
-            IOctopusAsyncClient client,
+        private async Task<VariableDictionary> GetVariables(IOctopusAsyncClient client,
             LocalConfig config,
             IReadOnlyDictionary<string, string> userConfig,
-            IReadOnlyDictionary<string, string> sessionVariables)
+            IReadOnlyDictionary<string, string> sessionVariables,
+            GlobalConfig globalConfig)
         {
             DebugLine(() => "Getting variables");
+            var octopusEnvironments = await client.Repository.Environments.FindAll();
+            var configuredEnvironments = config.Environments ?? globalConfig.Environments ?? new string[0];
+            var environments = configuredEnvironments
+                .Select(x => octopusEnvironments.First(y => y.Name == x).Id).ToArray();
+            DebugLine(() =>
+                $"Found {Colors.Bold(environments.Length.ToString().PadLeft(1))} configured environment{(configuredEnvironments.Length == 1 ? string.Empty : "s")}: {string.Join("|", configuredEnvironments)}{(configuredEnvironments.Length == 0 ? "This means only variables without environment scope will be included." : string.Empty)}");
             var project = await client.Repository.Projects.Get(config.ProjectId);
-            var projectVariables = await GetProjectVariables(client, project);
+            var projectVariables = await GetProjectVariables(client, project, environments);
             DebugLine(() => $"Got {Colors.Bold(projectVariables.Count.ToString().PadLeft(3))} project variables");
             var variableSets = await client.Repository.LibraryVariableSets.Get(project.IncludedLibraryVariableSetIds.ToArray());
             DebugLine(() => $"Found {Colors.Bold(variableSets.Count)} library variable sets");
-            var variableSetVariables = await GetLibraryVariables(variableSets, client);
+            var variableSetVariables = await GetLibraryVariables(variableSets, client, environments);
 
             DebugLine(() => $"Got {Colors.Bold(variableSetVariables.Keys.Concat(projectVariables.Keys).Distinct().Count().ToString().PadLeft(3))} distinct variables");
             return Static.CreateVariables(variableSetVariables, projectVariables, config, userConfig, sessionVariables);
         }
 
-        private static async Task<IReadOnlyDictionary<string, string>> GetProjectVariables(IOctopusAsyncClient client, ProjectResource project)
+        private static async Task<IReadOnlyDictionary<string, string>> GetProjectVariables(
+            IOctopusAsyncClient client,
+            ProjectResource project,
+            IEnumerable<string> environments)
         {
             var variables = await client.Repository.VariableSets.Get(project.VariableSetId);
-            return variables.Variables.ToDictionary();
+            return FilterVariables(environments, variables).ToDictionary();
         }
 
         private async Task<IReadOnlyDictionary<string, string>> GetLibraryVariables(
-            IEnumerable<LibraryVariableSetResource> variableSets, IOctopusAsyncClient client)
+            IEnumerable<LibraryVariableSetResource> variableSets,
+            IOctopusAsyncClient client,
+            IReadOnlyCollection<string> environments)
         {
             var result = new List<VariableResource>();
             foreach (var variableSet in variableSets)
             {
                 var variables = await client.Repository.VariableSets.Get(variableSet.VariableSetId);
                 DebugLine(() => $"Got {Colors.Bold(variables.Variables.Count.ToString().PadLeft(3))} variables from {Colors.Bold(variableSet.Name)}");
-                result.AddRange(variables.Variables);
+                result.AddRange(FilterVariables(environments, variables));
             }
 
             return result.ToDictionary();
         }
+
+        private static IReadOnlyCollection<VariableResource> FilterVariables(IEnumerable<string> environments, VariableSetResource variables) =>
+            variables.Variables.Where(x => !x.Scope.ContainsKey(ScopeField.Environment) || x.Scope[ScopeField.Environment].Any(environments.Contains)).ToList();
 
         private void Debug(Func<string> message)
         {

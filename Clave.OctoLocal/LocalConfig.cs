@@ -15,5 +15,7 @@
         public List<string> Exclude { get; set; }
 
         public List<string> ConfigFilePattern { get; set; } = new List<string> { "*.octopus.config => *.config", "*.octopus.json => *.json" };
+
+        public string[] Environments { get; set; }
     }
 }

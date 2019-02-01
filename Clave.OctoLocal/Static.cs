@@ -56,7 +56,7 @@
             return to;
         }
 
-        public static IReadOnlyDictionary<string, string> ToDictionary(this IList<VariableResource> variables)
+        public static IReadOnlyDictionary<string, string> ToDictionary(this IReadOnlyCollection<VariableResource> variables)
         {
             var result = new Dictionary<string, string>(variables.Count);
             foreach (var variable in variables)
