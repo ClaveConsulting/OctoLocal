@@ -26,7 +26,6 @@ before_build:
   - ps: dotnet restore
 
 build:
-  publish_nuget: true
   verbosity: minimal
 
 after_build:
