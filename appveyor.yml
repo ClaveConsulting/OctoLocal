@@ -30,7 +30,7 @@ build:
   verbosity: minimal
 
 after_build:
-  - ps: dotnet pack --no-build
+  - ps: dotnet pack -c Release -p:PackageVersion=$env:GitVersion_MajorMinorPatch --output .
   - ps: Get-ChildItem .\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
 
 deploy:
