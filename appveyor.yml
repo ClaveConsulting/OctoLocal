@@ -31,7 +31,7 @@ build:
 
 after_build:
   - ps: dotnet pack -c Release -p:PackageVersion=$env:GitVersion_MajorMinorPatch --output .
-  - ps: Get-ChildItem .\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+  - ps: Get-ChildItem *.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
 
 deploy:
 - provider: NuGet
