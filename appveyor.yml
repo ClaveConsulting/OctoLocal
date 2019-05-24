@@ -26,12 +26,12 @@ before_build:
   - ps: dotnet restore
 
 build:
-  publish_nuget: true
   verbosity: minimal
 
 after_build:
-  - ps: dotnet pack -c Release -p:PackageVersion=$env:GitVersion_MajorMinorPatch --output .
-  - ps: Get-ChildItem *.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+  - ps: >-
+      dotnet pack -c Release -p:PackageVersion=$env:GitVersion_MajorMinorPatch --output .
+      Get-ChildItem *.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
 
 deploy:
 - provider: NuGet
